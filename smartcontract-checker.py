@@ -4,6 +4,19 @@ import argparse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+import os
+import subprocess
+
+def check_dependencies():
+    try:
+        subprocess.run(['which', 'mythril'], check=True, stdout=subprocess.PIPE)
+        subprocess.run(['which', 'oyente'], check=True, stdout=subprocess.PIPE)
+        subprocess.run(['which', 'securify'], check=True, stdout=subprocess.PIPE)
+        subprocess.run(['which', 'slither'], check=True, stdout=subprocess.PIPE)
+        subprocess.run(['which', 'smartcheck'], check=True, stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError:
+        print("One of the required tools (Mythril, Oyente, Securify, Slither, SmartCheck) is not installed or not in PATH")
+        exit(1)
 
 def display_help():
     print("Usage: python script.py -c contract [-o output] [-p pdf] [-h]")
@@ -14,20 +27,19 @@ def display_help():
     print("  -h              display this help and exit")
     exit(0)
 
-# Validate the input file path
-def validate_file_path(file_path):
-    if not os.path.isfile(file_path):
-        print("[ERROR] Invalid file path: " + file_path)
-        display_help()
-
-# Parse command line arguments
 parser = argparse.ArgumentParser(description="Checks a smart contract for common security vulnerabilities using Mythril, Oyente, Securify, Slither, SmartCheck")
 parser.add_argument("-c", "--contract", type=str, required=True, help="path to the smart contract file")
 parser.add_argument("-o", "--output", type=str, help="specify the output file name")
-parser.add_argument("-p", "--pdf", help="generate a pdf report", action='store_true')
+parser.add_argument("-p", "--pdf", help="generate a pdf file", action='store_true')
 args = parser.parse_args()
 
-validate_file_path(args.contract)
+# Check if the required tools are installed
+check_dependencies()
+
+# Check if the provided contract file exists
+if not os.path.isfile(args.contract):
+    print(f"Error: {args.contract} does not exist or is not a file.")
+    exit(1)
 
 # Read the bytecode of the smart contract
 with open(args.contract, "r") as file:
@@ -46,20 +58,17 @@ oyente_issues = oyente.analyze(disassembly)
 slither_issues = slither.analyze(disassembly)
 
 # Perform the security analysis using SmartCheck
-smartcheck_issues = smartcheck
+smartcheck_issues = smartcheck.analyze(disassembly)
 
 # Perform the security analysis using Securify
 securify_issues = securify.analyze(disassembly)
 
 if args.pdf:
     # Create a PDF file
-    if args.output:
-        doc = SimpleDocTemplate(args.output, pagesize=landscape(letter))
-    else:
-        doc = SimpleDocTemplate("output.pdf", pagesize=landscape(letter))
+    doc = SimpleDocTemplate(args.output, pagesize=landscape(letter))
     data = []
     t = Table([["Mythril"], ["Oyente"], ["Slither"], ["SmartCheck"], ["Securify"]])
-    t.setStyle(TableStyle([
+        t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -89,30 +98,16 @@ if args.pdf:
         ('GRID', (0, 0), (-1, -1), 1, colors.black)
     ]))
     doc.build([t])
-    print("PDF file created successfully")
 else:
-    # Print the issues to the output file
-    if args.output:
-        with open(args.output, "w") as file:
-            for issue in issues:
-                file.write("Mythril: "+issue.description+"\n")
-            for issue in oyente_issues:
-                file.write("Oyente: "+issue.description+"\n")
-            for issue in slither_issues:
-                file.write("Slither: "+issue.description+"\n")
-            for issue in smartcheck_issues:
-                file.write("SmartCheck: "+issue.description+"\n")
-            for issue in securify_issues:
-                file.write("Securify: "+issue.description+"\n")
-        print("Text file created successfully")
-    else:
+    # Write the output to a file
+    with open(args.output, "w") as file:
         for issue in issues:
-            print("Mythril: "+issue.description)
+            file.write("Mythril: "+issue.description+"\n")
         for issue in oyente_issues:
-            print("Oyente: "+issue.description)
+            file.write("Oyente: "+issue.description+"\n")
         for issue in slither_issues:
-            print("Slither: "+issue.description)
+            file.write("Slither: "+issue.description+"\n")
         for issue in smartcheck_issues:
-            print("SmartCheck: "+issue.description)
+            file.write("SmartCheck: "+issue.description+"\n")
         for issue in securify_issues:
-            print("Securify: "+issue.description)
+            file.write("Securify: "+issue.description+"\n")
