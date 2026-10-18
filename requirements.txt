@@ -1,2 +1,17 @@
-reportlab
-argparse
+# smartcontract-checker runtime dependencies.
+#
+# Third-party imports: reportlab (smartcontract-checker.py:4,5,6),
+# requests (download-smartcontract.py:5).
+#
+# Removed, standard-library module: argparse
+#
+# Pinned: reportlab and requests were previously unversioned, so every fresh
+# environment silently picked up whatever was newest. reportlab 5.x moved
+# several canvas APIs used by smartcontract-checker.py, so it is pinned to a
+# 4.x release that still exposes them.
+#
+# NOTE: download-tools.py fetches its own external analyzer binaries at runtime
+# and therefore declares no Python dependencies here; that is deliberate and
+# unchanged by this patch.
+requests==2.31.0
+reportlab==4.0.9
